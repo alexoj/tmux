@@ -113,6 +113,12 @@ const struct options_table_entry options_table[] = {
 	  .default_num = 1
 	},
 
+	{ .name = "set-x-clipboard",
+	  .type = OPTIONS_TABLE_FLAG,
+	  .scope = OPTIONS_TABLE_SERVER,
+	  .default_num = 1
+	},
+
 	{ .name = "terminal-overrides",
 	  .type = OPTIONS_TABLE_STRING,
 	  .scope = OPTIONS_TABLE_SERVER,

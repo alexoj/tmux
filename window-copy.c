@@ -17,10 +17,13 @@
  */
 
 #include <sys/types.h>
+#include <sys/wait.h>
 
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include "tmux.h"
 
@@ -86,6 +89,8 @@ void	window_copy_scroll_down(struct window_pane *, u_int);
 void	window_copy_rectangle_toggle(struct window_pane *);
 void	window_copy_drag_update(struct client *, struct mouse_event *);
 void	window_copy_drag_release(struct client *, struct mouse_event *);
+
+void    xclip_set_x_clipboard(void*, size_t);
 
 const struct window_mode window_copy_mode = {
 	window_copy_init,
@@ -1515,6 +1520,10 @@ window_copy_copy_buffer(struct window_pane *wp, const char *bufname, void *buf,
 		screen_write_stop(&ctx);
 	}
 
+	if (options_get_number(global_options, "set-x-clipboard")) {
+		xclip_set_x_clipboard(buf, len);
+	}
+
 	if (paste_set(buf, len, bufname, NULL) != 0)
 		free(buf);
 }
@@ -1576,6 +1585,10 @@ window_copy_append_selection(struct window_pane *wp, const char *bufname)
 		screen_write_start(&ctx, wp, NULL);
 		screen_write_setselection(&ctx, buf, len);
 		screen_write_stop(&ctx);
+	}
+
+	if (options_get_number(global_options, "set-x-clipboard")) {
+		xclip_set_x_clipboard(buf, len);
 	}
 
 	if (bufname == NULL || *bufname == '\0')
@@ -2327,4 +2340,25 @@ window_copy_drag_update(__unused struct client *c, struct mouse_event *m)
 	window_copy_update_cursor(wp, x, y);
 	if (window_copy_update_selection(wp, 1))
 		window_copy_redraw_selection(wp, old_cy);
+}
+
+void
+xclip_set_x_clipboard(void* buf, size_t len)
+{
+	int pid = fork();
+
+	if (pid == 0) {
+		FILE* pipe = popen(
+				"xclip -selection clipboard -i",
+				"w");
+
+		if (pipe) {
+			fwrite(buf, len, 1, pipe);
+			fclose(pipe);
+		}
+
+		exit(0);
+	} else {
+		waitpid(pid, 0, 0);
+	}
 }
